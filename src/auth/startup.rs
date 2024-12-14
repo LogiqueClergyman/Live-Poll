@@ -15,18 +15,18 @@ use tokio::sync::Mutex;
 
 use webauthn_rs::prelude::*;
 
-pub(crate) struct UserData {
+pub struct UserData {
     pub(crate) name_to_id: HashMap<String, Uuid>,
     pub(crate) keys: HashMap<Uuid, Vec<Passkey>>,
 }
 
-pub(crate) fn startup() -> (Data<Webauthn>, Data<Mutex<UserData>>) {
+pub fn startup() -> (Data<Webauthn>, Data<Mutex<UserData>>) {
     // Effective domain name.
     let rp_id = "localhost";
     // Url containing the effective domain name
     // MUST include the port number!
-    let rp_origin = Url::parse("http://127.0.0.1:8080").expect("Invalid URL");
-    let builder = WebauthnBuilder::new(rp_id, &rp_origin).expect("Invalid configuration");
+    let rp_origin = Url::parse("http://localhost:3000").expect("Invalid URL");
+    let builder = WebauthnBuilder::new(&rp_id, &rp_origin).expect("Invalid configuration");
 
     // Now, with the builder you can define other options.
     // Set a "nice" relying party name. Has no security properties and
