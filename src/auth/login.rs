@@ -1,10 +1,13 @@
+use crate::db::auth::{get_passkey, get_user_id};
+
 use super::error::{Error, WebResult};
 use super::startup::UserData;
 use actix_session::Session;
-use actix_web::web::{Data, Json, Path};
+use actix_web::web::{Data, Json};
 use actix_web::HttpResponse;
 use log::{error, info};
 use serde::Deserialize;
+use sqlx::PgPool;
 use tokio::sync::Mutex;
 
 /*
@@ -21,6 +24,7 @@ pub struct RegisterRequest {
 }
 
 pub async fn start_authentication(
+    pool: Data<&PgPool>,
     req: Json<RegisterRequest>,
     session: Session,
     webauthn_users: Data<Mutex<UserData>>,
@@ -28,29 +32,37 @@ pub async fn start_authentication(
 ) -> WebResult<Json<RequestChallengeResponse>> {
     info!("Start Authentication");
     let username = req.username.clone();
-    // We get the username from the URL, but you could get this via form submission or
-    // some other process.
-    println!("Username: {}", username);
     // Remove any previous authentication that may have occurred from the session.
-    info!("User: {}", username);
     session.remove("auth_state");
     // Get the set of keys that the user possesses
     let users_guard = webauthn_users.lock().await;
 
     // Look up their unique id from the username
-    let user_unique_id = users_guard
-        .name_to_id
-        .get(username.as_str())
-        .copied()
-        .ok_or(Error::UserNotFound)?;
-    info!("User ID: {}", user_unique_id);
-    let allow_credentials = users_guard
-        .keys
-        .get(&user_unique_id)
-        .ok_or(Error::UserHasNoCredentials)?;
-    info!("Allow Credentials: {:?}", allow_credentials);
+    let user_unique_id = match get_user_id(&pool, &username).await{
+        Ok(id) => id,
+        Err(e) => {
+            error!("start_authentication -> {:?}", e);
+            return Err(Error::UserNotFound);
+        }
+    };
+    // let user_unique_id = users_guard
+    //     .name_to_id
+    //     .get(username.as_str())
+    //     .copied()
+    //     .ok_or(Error::UserNotFound)?;
+    let allow_credentials = match get_passkey(&pool, user_unique_id).await{
+        Ok(creds) => creds,
+        Err(e) => {
+            error!("start_authentication -> {:?}", e);
+            return Err(Error::UserHasNoCredentials);
+        }
+    };
+    // let allow_credentials = users_guard
+    //     .keys
+    //     .get(&user_unique_id)
+    //     .ok_or(Error::UserHasNoCredentials)?;
     let (rcr, auth_state) = webauthn
-        .start_passkey_authentication(allow_credentials)
+        .start_passkey_authentication(&allow_credentials)
         .map_err(|e| {
             info!("challenge_authenticate -> {:?}", e);
             Error::Unknown(e)
@@ -58,12 +70,10 @@ pub async fn start_authentication(
 
     // Drop the mutex to allow the mut borrows below to proceed
     drop(users_guard);
-    info!("Auth State: {:?}", auth_state);
     // Note that due to the session store in use being a server side memory store, this is
     // safe to store the auth_state into the session since it is not client controlled and
     // not open to replay attacks. If this was a cookie store, this would be UNSAFE.
     session.insert("auth_state", (user_unique_id, auth_state))?;
-    info!("Login initiated");
     Ok(Json(rcr))
 }
 
@@ -105,6 +115,8 @@ pub async fn finish_authentication(
         })
         .ok_or(Error::UserHasNoCredentials)?;
 
+    session.insert("user_id", user_unique_id).unwrap();
     info!("Authentication Successful!");
     Ok(HttpResponse::Ok().finish())
 }
+

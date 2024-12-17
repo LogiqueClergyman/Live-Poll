@@ -1,3 +1,4 @@
+use crate::db::auth::{store_passkey, store_username};
 use super::error::{Error, WebResult};
 use super::startup::UserData;
 use actix_session::Session;
@@ -5,6 +6,7 @@ use actix_web::web::{Data, Json, Path};
 use actix_web::HttpResponse;
 use log::{error, info};
 use serde::Deserialize;
+use sqlx::PgPool;
 use tokio::sync::Mutex;
 use webauthn_rs::prelude::*;
 
@@ -68,8 +70,9 @@ pub async fn start_register(
         error!("Failed to save reg_state to session storage!");
         return Err(Error::SessionInsert(err));
     };
+    println!("HAJA {:?}", session.entries());
     // println!("{:?}", session.entries());
-    info!("Registration Successful!");
+    info!("Registration Initiated!");
     Ok(Json(ccr))
 }
 
@@ -82,20 +85,17 @@ pub async fn finish_register(
     session: Session,
     webauthn_users: Data<Mutex<UserData>>,
     webauthn: Data<Webauthn>,
+    pool: Data<PgPool>,
 ) -> WebResult<HttpResponse> {
-    // println!("{:?}", session.entries());
-    let (username, user_unique_id, reg_state) = match session.get("reg_state")? {
-        Some((username, user_unique_id, reg_state)) => (username, user_unique_id, reg_state),
-        None => {
-            return {
-                println!("returning ieerrior");
-                Err(Error::CorruptSession)
-            }
-        }
-    };
+    println!("Registering");
+    println!("HAJI {:?}", session.entries());
+    let (username, user_unique_id, reg_state): (String, Uuid, PasskeyRegistration) =
+        match session.get("reg_state")? {
+            Some((username, user_unique_id, reg_state)) => (username, user_unique_id, reg_state),
+            None => return Err(Error::CorruptSession),
+        };
     session.remove("reg_state");
-    info!("session retrieved: {:?}", reg_state);
-    info!("client response: {:?}", req);
+    info!("Finishing registration for user: {}", username);
     let sk = webauthn
         .finish_passkey_registration(&req, &reg_state)
         .map_err(|e| {
@@ -104,8 +104,7 @@ pub async fn finish_register(
         })?;
 
     let mut users_guard = webauthn_users.lock().await;
-    println!("{:?}", sk);
-    //TODO: This is where we would store the credential in a db, or persist them in some other way.
+    // println!("{:?}", sk);
 
     users_guard
         .keys
@@ -113,7 +112,29 @@ pub async fn finish_register(
         .and_modify(|keys| keys.push(sk.clone()))
         .or_insert_with(|| vec![sk.clone()]);
 
-    users_guard.name_to_id.insert(username, user_unique_id);
+    users_guard
+        .name_to_id
+        .insert(username.clone(), user_unique_id);
+
+    match store_username(&pool, &username, user_unique_id).await {
+        Err(e) => {
+            error!("Failed to store username: {:?}", e);
+            return Err(Error::DatabaseError(e));
+        }
+        Ok(_) => {
+            info!("Storing username");
+        }
+    };
+
+    match store_passkey(&pool, &sk, user_unique_id).await {
+        Err(e) => {
+            error!("Failed to store passkey: {:?}", e);
+            return Err(Error::DatabaseError(e));
+        }
+        Ok(_) => {
+            info!("Storing passkey");
+        }
+    };
 
     Ok(HttpResponse::Ok().finish())
 }

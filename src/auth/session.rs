@@ -94,7 +94,7 @@ impl SessionStore for MemorySession {
             Ok(session_key)
         } else {
             Err(UpdateError::Other(anyhow!(
-                "Didn't found session with that key"
+                "Couldn't find session with that key"
             )))
         }
     }

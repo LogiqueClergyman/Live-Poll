@@ -1,14 +1,14 @@
+use actix_cors::Cors;
 use actix_session::SessionMiddleware;
 use actix_web::{
     cookie::Key,
     middleware::Logger,
     web,
-    web::{get, post, JsonConfig},
+    web::{get, post, JsonConfig, Data},
     App, HttpResponse, HttpServer, Responder,
 };
 use log::info;
 mod auth;
-use actix_cors::Cors;
 pub use auth::{
     login::{finish_authentication, start_authentication},
     register::{finish_register, start_register},
@@ -16,12 +16,37 @@ pub use auth::{
     startup::startup,
 };
 
+mod db;
+use db::{create_pool::create_db_pool, migrations::run_migrations};
+
+mod polls;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     if std::env::var_os("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", "info");
+        std::env::set_var("RUST_LOG", "debug");
     }
     env_logger::init();
+    let pool = loop {
+        match create_db_pool().await {
+            Ok(pool) => break pool,
+            Err(err) => {
+                info!("Error creating pool: {}. Retrying...", err);
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+        }
+    };
+    loop {
+        match run_migrations(&*pool).await {
+            Ok(_) => {
+                info!("Migrations completed successfully.");
+                break;
+            }
+            Err(e) => {
+                info!("Migrations failed: {:?}", e);
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+        }
+    }
     let key = Key::generate();
     let (webauthn, webauthn_users) = startup();
     HttpServer::new(move || {
@@ -43,6 +68,7 @@ async fn main() -> std::io::Result<()> {
                     .cookie_secure(false)
                     .build(),
             )
+            .app_data(Data::new(pool.as_ref().clone()))
             .app_data(JsonConfig::default())
             .app_data(webauthn.clone())
             .app_data(webauthn_users.clone())
