@@ -81,7 +81,7 @@ const CompleteLogin: React.FC<CompleteLoginProps> = ({ authData }) => {
     try {
       // Send the credential to your backend to finalize the registration
       await axios.post(
-        "http://localhost:8080/auth/login_complete",
+        "http://localhost:8080/api/auth/login_complete",
         credential,
         {
           withCredentials: true,

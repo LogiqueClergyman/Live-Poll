@@ -29,7 +29,7 @@ const StartLogin: React.FC<StartLoginProps> = ({ onStart }) => {
     try {
       // Send the request to your backend to start registration
       const response = await axios.post<StartLoginResponse>(
-        "http://localhost:8080/auth/login",
+        "http://localhost:8080/api/auth/login",
         {
           username,
         },
