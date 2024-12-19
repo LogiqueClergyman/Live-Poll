@@ -87,8 +87,6 @@ pub async fn finish_register(
     webauthn: Data<Webauthn>,
     pool: Data<PgPool>,
 ) -> WebResult<HttpResponse> {
-    println!("Registering");
-    println!("HAJI {:?}", session.entries());
     let (username, user_unique_id, reg_state): (String, Uuid, PasskeyRegistration) =
         match session.get("reg_state")? {
             Some((username, user_unique_id, reg_state)) => (username, user_unique_id, reg_state),

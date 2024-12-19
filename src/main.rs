@@ -1,10 +1,12 @@
+use std::path;
+
 use actix_cors::Cors;
 use actix_session::SessionMiddleware;
 use actix_web::{
     cookie::Key,
     middleware::Logger,
     web,
-    web::{get, post, JsonConfig, Data},
+    web::{get, post, Data, JsonConfig},
     App, HttpResponse, HttpServer, Responder,
 };
 use log::info;
@@ -20,6 +22,7 @@ mod db;
 use db::{create_pool::create_db_pool, migrations::run_migrations};
 
 mod polls;
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     if std::env::var_os("RUST_LOG").is_none() {
@@ -47,7 +50,7 @@ async fn main() -> std::io::Result<()> {
             }
         }
     }
-    let key = Key::generate();
+    let key = Key::from(format!("{:0<100}", "qwerty").as_bytes());
     let (webauthn, webauthn_users) = startup();
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -73,11 +76,34 @@ async fn main() -> std::io::Result<()> {
             .app_data(webauthn.clone())
             .app_data(webauthn_users.clone())
             .service(
-                web::scope("/auth")
+                web::scope("/api/auth")
+                    .route("/me", web::post().to(auth::get_user::get_user))
                     .route("/register", web::post().to(start_register))
                     .route("/register_complete", web::post().to(finish_register))
                     .route("/login", post().to(start_authentication))
                     .route("/login_complete", post().to(finish_authentication)),
+            )
+            .service(
+                web::scope("/api/polls")
+                    .route(
+                        "/{poll_id}/close",
+                        web::post().to(polls::manage_polls::close_poll),
+                    )
+                    .route(
+                        "/{poll_id}/vote",
+                        web::post().to(polls::manage_polls::vote_poll),
+                    )
+                    .route(
+                        "/{poll_id}/reset",
+                        web::post().to(polls::manage_polls::reset_poll),
+                    )
+                    .route(
+                        "/{poll_id}/results",
+                        web::get().to(polls::manage_polls::get_poll_results),
+                    )
+                    .route("/{poll_id}", web::get().to(polls::manage_polls::get_poll))
+                    .route("/create", web::post().to(polls::manage_polls::create_poll))
+                    .route("/", web::get().to(polls::manage_polls::get_polls_brief)),
             )
     })
     .bind(("localhost", 8080))?

@@ -31,13 +31,26 @@ pub async fn store_username(
         INSERT INTO users (id, username)
         VALUES ($1, $2)
         RETURNING id
-        "#
+        "#,
     )
     .bind(user_id)
     .bind(username)
     .execute(pool)
     .await?;
     Ok(())
+}
+
+pub async fn get_username(pool: &PgPool, user_id: Uuid) -> Result<String, sqlx::Error> {
+    let row = sqlx::query!(
+        r#"
+        SELECT username FROM users WHERE id = $1
+        "#,
+        user_id
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok(row.username)
 }
 
 pub async fn get_user_id(pool: &PgPool, username: &str) -> Result<Uuid, sqlx::Error> {
@@ -63,7 +76,10 @@ pub async fn get_passkey(pool: &PgPool, user_id: Uuid) -> Result<Vec<Passkey>, s
     .fetch_all(pool)
     .await?;
 
-    Ok(rows.iter().map(|row| serde_json::from_slice::<Passkey>(&row.key_data).unwrap()).collect())
+    Ok(rows
+        .iter()
+        .map(|row| serde_json::from_slice::<Passkey>(&row.key_data).unwrap())
+        .collect())
 }
 
 pub async fn update_credentials(

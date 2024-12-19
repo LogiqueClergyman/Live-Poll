@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{types::Uuid, PgPool};
 
 pub async fn create_poll(
@@ -41,7 +41,7 @@ pub async fn create_option(
     pool: &PgPool,
     option_id: Uuid,
     poll_id: Uuid,
-    option_text: &str,
+    option_text: String,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
@@ -69,10 +69,23 @@ pub async fn close_poll(pool: &PgPool, poll_id: Uuid) -> Result<(), sqlx::Error>
     Ok(())
 }
 
-pub async fn reset_votes(pool: &PgPool, poll_id: Uuid) -> Result<(), sqlx::Error> {
+pub async fn delete_votes(pool: &PgPool, poll_id: Uuid) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
         DELETE FROM votes WHERE poll_option_id IN (SELECT id FROM poll_options WHERE poll_id = $1)
+        "#,
+        poll_id
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+
+pub async fn reset_votes_count(pool: &PgPool, poll_id: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+        UPDATE poll_options SET votes_count = 0 WHERE poll_id = $1
         "#,
         poll_id
     )
@@ -105,24 +118,18 @@ pub async fn delete_poll(pool: &PgPool, poll_id: Uuid) -> Result<(), sqlx::Error
     Ok(())
 }
 
-pub async fn delete_votes(pool: &PgPool, poll_id: Uuid) -> Result<(), sqlx::Error> {
+pub async fn vote(
+    pool: &PgPool,
+    poll_option_id: Uuid,
+    user_id: Uuid,
+    vote_id: Uuid,
+) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
-        DELETE FROM votes WHERE poll_option_id IN (SELECT id FROM poll_options WHERE poll_id = $1)
+        INSERT INTO votes (id, user_id, poll_option_id)
+        VALUES ($1, $2, $3)
         "#,
-        poll_id
-    )
-    .execute(pool)
-    .await?;
-    Ok(())
-}
-
-pub async fn vote(pool: &PgPool, poll_option_id: Uuid, user_id: Uuid) -> Result<(), sqlx::Error> {
-    sqlx::query!(
-        r#"
-        INSERT INTO votes (user_id, poll_option_id)
-        VALUES ($1, $2)
-        "#,
+        vote_id,
         user_id,
         poll_option_id
     )
@@ -176,19 +183,19 @@ pub async fn decrease_vote_count(pool: &PgPool, poll_option_id: Uuid) -> Result<
     Ok(())
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(sqlx::FromRow, Serialize, Deserialize, Debug)]
 pub struct Poll {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub title: Option<String>,
-    pub description: Option<String>,
-    pub is_active: Option<bool>,
-    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub title: String,
+    pub description: String,
+    pub is_active: bool,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 pub async fn get_poll(pool: &PgPool, poll_id: Uuid) -> Result<Poll, sqlx::Error> {
-    let poll = sqlx::query_as!(
-        Poll,
+    println!("{:?}", poll_id);
+    let poll = sqlx::query!(
         r#"
         SELECT * FROM polls WHERE id = $1
         "#,
@@ -196,10 +203,70 @@ pub async fn get_poll(pool: &PgPool, poll_id: Uuid) -> Result<Poll, sqlx::Error>
     )
     .fetch_one(pool)
     .await?;
+    let poll = Poll {
+        id: poll.id,
+        user_id: poll.user_id,
+        title: poll.title,
+        description: poll.description.unwrap_or("No description".to_string()),
+        is_active: poll.is_active.unwrap_or(true),
+        created_at: poll.created_at.unwrap_or(chrono::Utc::now()),
+    };
+    println!("{:?}", poll);
     Ok(poll)
 }
 
-#[derive(sqlx::FromRow, Serialize)]
+pub async fn get_user_polls_brief(pool: &PgPool, user_id: Uuid) -> Result<Vec<Poll>, sqlx::Error> {
+    let polls = sqlx::query!(
+        r#"
+        SELECT * FROM polls WHERE user_id = $1
+        "#,
+        user_id
+    )
+    .fetch_all(pool)
+    .await?;
+    let polls = polls
+        .iter()
+        .map(|poll| Poll {
+            id: poll.id,
+            user_id: poll.user_id,
+            title: poll.title.clone(),
+            description: poll
+                .description
+                .clone()
+                .unwrap_or("No description".to_string()),
+            is_active: poll.is_active.unwrap_or(true),
+            created_at: poll.created_at.unwrap_or(chrono::Utc::now()),
+        })
+        .collect();
+    Ok(polls)
+}
+
+pub async fn get_all_polls(pool: &PgPool) -> Result<Vec<Poll>, sqlx::Error> {
+    let polls = sqlx::query!(
+        r#"
+        SELECT * FROM polls
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+    let polls = polls
+        .iter()
+        .map(|poll| Poll {
+            id: poll.id,
+            user_id: poll.user_id,
+            title: poll.title.clone(),
+            description: poll
+                .description
+                .clone()
+                .unwrap_or("No description".to_string()),
+            is_active: poll.is_active.unwrap_or(true),
+            created_at: poll.created_at.unwrap_or(chrono::Utc::now()),
+        })
+        .collect();
+    Ok(polls)
+}
+
+#[derive(sqlx::FromRow, Serialize, Debug)]
 pub struct PollOption {
     pub id: Uuid,
     pub poll_id: Uuid,
@@ -246,13 +313,19 @@ pub async fn has_user_voted(
     pool: &PgPool,
     poll_option_id: Uuid,
     user_id: Uuid,
+    poll_id: Uuid,
 ) -> Result<bool, sqlx::Error> {
     let vote = sqlx::query!(
         r#"
-        SELECT EXISTS(SELECT 1 FROM votes WHERE user_id = $1 AND poll_option_id = $2)
+        SELECT EXISTS(
+            SELECT 1 
+            FROM votes 
+            JOIN poll_options ON votes.poll_option_id = poll_options.id 
+            WHERE votes.user_id = $1 AND poll_options.poll_id = $2
+        )
         "#,
         user_id,
-        poll_option_id
+        poll_id
     )
     .fetch_one(pool)
     .await?;

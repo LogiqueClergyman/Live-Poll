@@ -1,4 +1,4 @@
-use crate::db::auth::{get_passkey, get_user_id};
+use crate::db::auth::{get_passkey, get_user_id, get_username};
 
 use super::error::{Error, WebResult};
 use super::startup::UserData;
@@ -7,6 +7,7 @@ use actix_web::web::{Data, Json};
 use actix_web::HttpResponse;
 use log::{error, info};
 use serde::Deserialize;
+use serde_json::json;
 use sqlx::PgPool;
 use tokio::sync::Mutex;
 
@@ -24,7 +25,7 @@ pub struct RegisterRequest {
 }
 
 pub async fn start_authentication(
-    pool: Data<&PgPool>,
+    pool: Data<PgPool>,
     req: Json<RegisterRequest>,
     session: Session,
     webauthn_users: Data<Mutex<UserData>>,
@@ -38,7 +39,7 @@ pub async fn start_authentication(
     let users_guard = webauthn_users.lock().await;
 
     // Look up their unique id from the username
-    let user_unique_id = match get_user_id(&pool, &username).await{
+    let user_unique_id = match get_user_id(&pool, &username).await {
         Ok(id) => id,
         Err(e) => {
             error!("start_authentication -> {:?}", e);
@@ -50,7 +51,7 @@ pub async fn start_authentication(
     //     .get(username.as_str())
     //     .copied()
     //     .ok_or(Error::UserNotFound)?;
-    let allow_credentials = match get_passkey(&pool, user_unique_id).await{
+    let allow_credentials = match get_passkey(&pool, user_unique_id).await {
         Ok(creds) => creds,
         Err(e) => {
             error!("start_authentication -> {:?}", e);
@@ -87,8 +88,10 @@ pub async fn finish_authentication(
     session: Session,
     webauthn_users: Data<Mutex<UserData>>,
     webauthn: Data<Webauthn>,
+    pool: Data<PgPool>,
 ) -> WebResult<HttpResponse> {
-    let (user_unique_id, auth_state) = session.get("auth_state")?.ok_or(Error::CorruptSession)?;
+    let (user_unique_id, auth_state): (Uuid, PasskeyAuthentication) =
+        session.get("auth_state")?.ok_or(Error::CorruptSession)?;
 
     session.remove("auth_state");
 
@@ -99,24 +102,29 @@ pub async fn finish_authentication(
             Error::BadRequest(e)
         })?;
 
-    let mut users_guard = webauthn_users.lock().await;
+    // let mut users_guard = webauthn_users.lock().await;
 
     // Update the credential counter, if possible.
-    users_guard
-        .keys
-        .get_mut(&user_unique_id)
-        .map(|keys| {
-            keys.iter_mut().for_each(|sk| {
-                // This will update the credential if it's the matching
-                // one. Otherwise it's ignored. That is why it is safe to
-                // iterate this over the full list.
-                sk.update_credential(&auth_result);
-            })
-        })
-        .ok_or(Error::UserHasNoCredentials)?;
+    // users_guard
+    //     .keys
+    //     .get_mut(&user_unique_id)
+    //     .map(|keys| {
+    //         keys.iter_mut().for_each(|sk| {
+    //             // This will update the credential if it's the matching
+    //             // one. Otherwise it's ignored. That is why it is safe to
+    //             // iterate this over the full list.
+    //             sk.update_credential(&auth_result);
+    //         })
+    //     })
+    //     .ok_or(Error::UserHasNoCredentials)?;
 
+    let username = get_username(&pool, user_unique_id).await?;
     session.insert("user_id", user_unique_id).unwrap();
+    // println!("{:?}", session.entries());
     info!("Authentication Successful!");
-    Ok(HttpResponse::Ok().finish())
+    let res = json!({
+        "userId": user_unique_id,
+        "username": username
+    });
+    Ok(HttpResponse::Ok().json(res))
 }
-
