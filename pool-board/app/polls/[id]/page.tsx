@@ -37,49 +37,83 @@ const Page = async ({ params }: { params: Params }) => {
   );
 
   return (
-    <div className="p-5 max-w-xl mx-auto font-sans">
-      <h1 className="text-center text-2xl font-bold text-gray-800">
-        {pollData?.title}
-      </h1>
-      <p className="text-center text-gray-600">{pollData?.description}</p>
-      <div className="mt-5">
-        <h2 className="text-xl font-semibold text-gray-700">Options</h2>
-        <ul className="list-none p-0">
-          {pollData?.options.map((option) => (
-            <li
-              key={option.id}
-              className="py-2 border-b border-gray-300 flex items-center"
-            >
-              <span className="font-bold flex-1">{option.option_text}</span>
-              <div className="w-1/2 bg-gray-200 rounded-full h-4 mx-2">
-                <div
-                  className="bg-blue-500 h-4 rounded-full"
-                  style={{ width: `${(option.votes_count ?? 0) * 10}%` }}
-                ></div>
-              </div>
-              <span className="text-gray-500">
-                {option.votes_count ?? 0} votes
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div></div>
-      <div className="mt-5 text-center text-gray-500">
-        <p>Created by User ID: {pollData?.user_id}</p>
-        <p>
-          Created at:{" "}
-          {pollData?.created_at
-            ? new Date(pollData.created_at).toLocaleString()
-            : "N/A"}
+    <div className="p-8 mx-auto min-h-screen bg-gray-900 text-gray-100">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-center text-3xl font-bold text-white mb-4">
+          {pollData?.title}
+        </h1>
+        <p className="text-center text-gray-400 mb-8">
+          {pollData?.description}
         </p>
-        <p>Status: {pollData?.is_active ? "Active" : "Inactive"}</p>
-      </div>
-      <div>
-        <Chart series={series} labels={labels} />
-      </div>
-      <div>
-        <Vote pollId={id} pollOptions={pollData.options} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            <div className="col-span-2 bg-gray-800 rounded-lg p-6 shadow-lg lg:grid lg:grid-cols-2 gap-6">
+            <div className="mb-8 lg:mb-0">
+              <h2 className="text-xl font-semibold text-gray-100 mb-4">
+              Voting Options
+              </h2>
+              <ul className="space-y-4">
+              {pollData?.options.map((option) => (
+                <li key={option.id} className="group">
+                <div className="flex flex-col space-y-2">
+                  <span className="font-medium text-gray-200">
+                  {option.option_text}
+                  </span>
+                  <div className="relative w-full h-4 bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="absolute h-full bg-blue-600 transition-all duration-300 rounded-full"
+                    style={{
+                    width: `${(option.votes_count ?? 0) * 10}%`,
+                    }}
+                  />
+                  </div>
+                  <span className="text-sm text-gray-400">
+                  {option.votes_count ?? 0} votes
+                  </span>
+                </div>
+                </li>
+              ))}
+              </ul>
+            </div>
+
+            <div className="w-full min-h-[300px] lg:min-h-0">
+              <Chart series={series} labels={labels} />
+            </div>
+            </div>
+
+          <div className="bg-gray-100 rounded-lg shadow-lg">
+            <Vote pollId={id} pollOptions={pollData.options} />
+          </div>
+        </div>
+
+        <div className="bg-gray-800 rounded-lg p-6 shadow-lg text-center">
+          <div className="grid grid-cols-3 gap-4 text-sm text-gray-400">
+            <div>
+              <p className="font-medium">Created by</p>
+              <p className="text-gray-300">User ID: {pollData?.user_id}</p>
+            </div>
+            <div>
+              <p className="font-medium">Created at</p>
+              <p className="text-gray-300">
+                {pollData?.created_at
+                  ? new Date(pollData.created_at).toLocaleString()
+                  : "N/A"}
+              </p>
+            </div>
+            <div>
+              <p className="font-medium">Status</p>
+              <span
+                className={`px-2 py-1 rounded-full text-xs ${
+                  pollData?.is_active
+                    ? "bg-green-500/20 text-green-400"
+                    : "bg-red-500/20 text-red-400"
+                }`}
+              >
+                {pollData?.is_active ? "Active" : "Inactive"}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

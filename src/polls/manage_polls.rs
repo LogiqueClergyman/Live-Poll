@@ -475,6 +475,7 @@ pub async fn get_poll_results(poll_id: Path<Uuid>, pool: Data<PgPool>) -> WebRes
         .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
         .map(|(option, _)| option);
     let res = json!({
+        "options": options,
         "poll": poll.title,
         "total_votes": total_votes,
         "winner": winner.unwrap(),

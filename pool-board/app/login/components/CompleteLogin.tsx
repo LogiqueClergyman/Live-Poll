@@ -8,7 +8,6 @@ interface CompleteLoginProps {
 }
 
 const CompleteLogin: React.FC<CompleteLoginProps> = ({ authData }) => {
-  console.log(authData);
   const { createSession } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
