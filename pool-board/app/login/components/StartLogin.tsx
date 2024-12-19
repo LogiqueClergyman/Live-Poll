@@ -27,7 +27,6 @@ const StartLogin: React.FC<StartLoginProps> = ({ onStart }) => {
     setError(null);
 
     try {
-      // Send the request to your backend to start registration
       const response = await axios.post<StartLoginResponse>(
         "http://localhost:8080/api/auth/login",
         {
@@ -37,9 +36,6 @@ const StartLogin: React.FC<StartLoginProps> = ({ onStart }) => {
           withCredentials: true
         }
       );
-
-      // Pass the challenge to the parent component
-      // console.log((response.data));
       onStart(response.data.publicKey);
     } catch (err) {
       console.error("Error loggin in:", err);
