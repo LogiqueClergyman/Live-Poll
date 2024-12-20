@@ -10,3 +10,8 @@ pub async fn get_user(session: Session) -> WebResult<HttpResponse> {
 
     Ok(HttpResponse::Ok().json(user_id))
 }
+
+pub async fn logout(session: Session) -> WebResult<HttpResponse> {
+    session.purge();
+    Ok(HttpResponse::Ok().finish())
+}

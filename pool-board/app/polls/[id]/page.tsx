@@ -1,13 +1,11 @@
-import React from "react";
+"use client";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Chart from "./Chart";
 import Vote from "./Vote";
-interface PollOption {
-  id: string;
-  poll_id: string;
-  option_text: string;
-  votes_count: number | null;
-}
+import Live from "./Live";
+
+type Params = Promise<{ id: string }>;
 
 interface PollData {
   title: string;
@@ -18,24 +16,29 @@ interface PollData {
   options: PollOption[];
 }
 
-type Params = Promise<{ id: string }>;
+interface PollOption {
+  id: string;
+  poll_id: string;
+  option_text: string;
+  votes_count: number | null;
+}
 
-const Page = async ({ params }: { params: Params }) => {
-  const { id } = await params;
-  // console.log(id);
-  let response = await axios.get(`http://localhost:8080/api/polls/${id}`);
-  const pollData: PollData = response.data;
-  response = await axios.get(`http://localhost:8080/api/polls/${id}/results`);
-  const chartData = response.data;
-  console.log("This is chart data: ", chartData);
-
-  const series = chartData.percentage.map((item: [string, number]) => item[1]);
-  const labels = chartData.percentage.map(
-    (item: [string, number]) =>
-      pollData.options.find((option) => option.id === item[0])?.option_text ||
-      ""
-  );
-
+const Page = ({ params }: { params: Params }) => {
+  const [pollData, setPollData] = useState<PollData | null>(null);
+  const [id, setId] = useState<string | null>(null);
+  const fetchPollData = async () => {
+    try {
+      const { id } = await params;
+      setId(id);
+      const { data } = await axios.get(`http://localhost:8080/api/polls/${id}`);
+      setPollData(data);
+    } catch (error) {
+      console.error("Failed to fetch poll data:", error);
+    }
+  };
+  useEffect(() => {
+    fetchPollData();
+  }, []);
   return (
     <div className="p-8 mx-auto min-h-screen bg-gray-900 text-gray-100">
       <div className="max-w-6xl mx-auto">
@@ -47,42 +50,21 @@ const Page = async ({ params }: { params: Params }) => {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            <div className="col-span-2 bg-gray-800 rounded-lg p-6 shadow-lg lg:grid lg:grid-cols-2 gap-6">
-            <div className="mb-8 lg:mb-0">
-              <h2 className="text-xl font-semibold text-gray-100 mb-4">
-              Voting Options
-              </h2>
-              <ul className="space-y-4">
-              {pollData?.options.map((option) => (
-                <li key={option.id} className="group">
-                <div className="flex flex-col space-y-2">
-                  <span className="font-medium text-gray-200">
-                  {option.option_text}
-                  </span>
-                  <div className="relative w-full h-4 bg-gray-700 rounded-full overflow-hidden">
-                  <div
-                    className="absolute h-full bg-blue-600 transition-all duration-300 rounded-full"
-                    style={{
-                    width: `${(option.votes_count ?? 0) * 10}%`,
-                    }}
-                  />
-                  </div>
-                  <span className="text-sm text-gray-400">
-                  {option.votes_count ?? 0} votes
-                  </span>
-                </div>
-                </li>
-              ))}
-              </ul>
-            </div>
-
+          <div className="col-span-2 bg-gray-800 rounded-lg p-6 shadow-lg lg:grid lg:grid-cols-2 gap-6">
+            <Live pollId={id === null ? "" : id} />
             <div className="w-full min-h-[300px] lg:min-h-0">
-              <Chart series={series} labels={labels} />
+              {id !== null && <Chart />}
             </div>
-            </div>
+          </div>
 
-          <div className="bg-gray-100 rounded-lg shadow-lg">
-            <Vote pollId={id} pollOptions={pollData.options} />
+          <div className="bg-gray-900 rounded-lg shadow-lg">
+            {pollData && (
+              <Vote
+                pollId={id === null ? "" : id}
+                pollOptions={pollData.options}
+                isActive={pollData.is_active}
+              />
+            )}
           </div>
         </div>
 
@@ -109,7 +91,7 @@ const Page = async ({ params }: { params: Params }) => {
                     : "bg-red-500/20 text-red-400"
                 }`}
               >
-                {pollData?.is_active ? "Active" : "Inactive"}
+                {pollData?.is_active ? "Active" : "Closed"}
               </span>
             </div>
           </div>

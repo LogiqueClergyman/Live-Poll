@@ -6,12 +6,18 @@ use crate::{
     db::polls,
 };
 use actix_session::Session;
-use actix_web::web::{self, Data, Json, Path};
 use actix_web::HttpResponse;
+use actix_web::{
+    web::{self, Data, Json, Path},
+    Responder,
+};
+use async_stream;
+use futures_util::stream::{Stream, StreamExt};
 use log::{info, warn};
 use serde::{de, Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::PgPool;
+use std::time::Duration;
 use webauthn_rs::prelude::*;
 
 #[derive(Deserialize)]
@@ -356,7 +362,7 @@ pub async fn get_poll(poll_id: Path<Uuid>, pool: Data<PgPool>) -> WebResult<Http
         created_at: poll.created_at,
         options,
     };
-    // println!("asdasd:   {:?}", res);
+    println!("asdasd:   {:?}", res);
     Ok(HttpResponse::Ok().json(res))
 }
 
@@ -438,49 +444,71 @@ pub async fn get_user_polls(user_id: Path<Uuid>, pool: Data<PgPool>) -> WebResul
     Ok(HttpResponse::Ok().json(polls))
 }
 
-pub async fn get_poll_results(poll_id: Path<Uuid>, pool: Data<PgPool>) -> WebResult<HttpResponse> {
+pub async fn get_poll_results(poll_id: Path<Uuid>, pool: Data<PgPool>) -> impl Responder {
     let poll_id = poll_id.into_inner();
+    let mut interval = tokio::time::interval(Duration::from_secs(2));
 
-    // Retrieve poll details
-    let poll = polls::get_poll(&pool, poll_id)
-        .await
-        .map_err(|_| Error::PollNotFound)?;
+    let stream = async_stream::stream! {
+    loop {
+        interval.tick().await;
 
-    // Retrieve poll options and their vote counts
-    let options = polls::get_poll_options_data(&pool, poll_id)
-        .await
-        .map_err(Error::DatabaseError)?;
-    let total_votes: i32 = options
-        .iter()
-        .map(|option| option.votes_count.unwrap_or(0))
-        .sum();
-    let option_percentage: Vec<_> = options
-        .iter()
-        .map(|option| {
-            let percentage = if total_votes > 0 {
-                (option.votes_count.unwrap_or(0) as f64 / total_votes as f64) * 100.0
-            } else {
-                0.0
+        let poll = match polls::get_poll(&pool, poll_id).await {
+            Ok(poll) => poll,
+            Err(_) => {
+                yield Result::<web::Bytes, Box<dyn std::error::Error>>::Ok(web::Bytes::from("Poll not found"));
+                return;
+            }
+        };
+
+            let options = match polls::get_poll_options_data(&pool, poll_id).await {
+                Ok(options) => options,
+                Err(_) => {
+                    yield Ok(web::Bytes::from("Database error"));
+                    return;
+                }
             };
-            (option.id, percentage)
-        })
-        .collect();
-    let winner = option_percentage
-        .iter()
-        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-        .map(|(option, _)| option);
-    let runner_up = option_percentage
-        .iter()
-        .filter(|(option, _)| option != winner.unwrap())
-        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
-        .map(|(option, _)| option);
-    let res = json!({
-        "options": options,
-        "poll": poll.title,
-        "total_votes": total_votes,
-        "winner": winner.unwrap(),
-        "runner_up": runner_up.unwrap(),
-        "percentage": option_percentage
-    });
-    Ok(HttpResponse::Ok().json(res))
+
+            let total_votes: i32 = options
+                .iter()
+                .map(|option| option.votes_count.unwrap_or(0))
+                .sum();
+            let option_percentage: Vec<_> = options
+                .iter()
+                .map(|option| {
+                    let percentage = if total_votes > 0 {
+                        (option.votes_count.unwrap_or(0) as f64 / total_votes as f64) * 100.0
+                    } else {
+                        0.0
+                    };
+                    (option.id, percentage)
+                })
+                .collect();
+
+            let winner = option_percentage
+                .iter()
+                .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or( std::cmp::Ordering::Equal))
+                .map(|(option, _)| option);
+
+            let runner_up = option_percentage
+                .iter()
+                .filter(|(option, _)| option != winner.unwrap())
+                .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or( std::cmp::Ordering::Equal))
+                .map(|(option, _)| option);
+
+            let res = json!({
+                "poll": poll.title,
+                "total_votes": total_votes,
+                "winner": winner.unwrap(),
+                "runner_up": runner_up.unwrap(),
+                "percentage": option_percentage,
+                "options": options,
+            });
+            println!("asdasd:   {:?}", res);
+            // Send the data as an SSE message
+            yield Ok(web::Bytes::from(format!("data: {}\n\n", serde_json::to_string(&res).unwrap())));
+        }
+    };
+    HttpResponse::Ok()
+        .content_type("text/event-stream")
+        .streaming(stream)
 }

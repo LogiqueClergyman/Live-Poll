@@ -5,8 +5,7 @@ use actix_session::SessionMiddleware;
 use actix_web::{
     cookie::Key,
     middleware::Logger,
-    web,
-    web::{get, post, Data, JsonConfig},
+    web::{self, get, post, route, Data, JsonConfig},
     App, HttpResponse, HttpServer, Responder,
 };
 use log::info;
@@ -81,7 +80,8 @@ async fn main() -> std::io::Result<()> {
                     .route("/register", web::post().to(start_register))
                     .route("/register_complete", web::post().to(finish_register))
                     .route("/login", post().to(start_authentication))
-                    .route("/login_complete", post().to(finish_authentication)),
+                    .route("/login_complete", post().to(finish_authentication))
+                    .route("logout", post().to(auth::get_user::logout)),
             )
             .service(
                 web::scope("/api/polls")

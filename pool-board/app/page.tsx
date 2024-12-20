@@ -1,3 +1,4 @@
+import Link from "next/link";
 import axios from "axios";
 
 type Poll = {
@@ -9,7 +10,6 @@ type Poll = {
   created_at: string;
 };
 
-import Link from "next/link";
 
 const Home = async () => {
   const response = await axios.get("http://localhost:8080/api/polls/");

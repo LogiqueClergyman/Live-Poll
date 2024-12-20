@@ -1,15 +1,66 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import dynamic from "next/dynamic";
+import axios from "axios";
 const ApexCharts = dynamic(() => import("react-apexcharts"), { ssr: false });
-
-interface ChartProps {
-  series: number[];
-  labels: string[];
+interface PollOption {
+  id: string;
+  poll_id: string;
+  option_text: string;
+  votes_count: number | null;
 }
+function Chart() {
+  // console.log(series, labels, totalVotes);
 
-function Chart({ series, labels }: ChartProps) {
+  const [series, setSeries] = React.useState<number[]>([]);
+  const [labels, setLabels] = React.useState<string[]>([]);
+  const [totalVotes, setTotalVotes] = React.useState<number>(0);
+  const [id, setId] = React.useState<string | null>(null);
+  useEffect(() => {
+    const pathSegments = window.location.pathname.split("/");
+    const urlId = pathSegments[pathSegments.length - 1];
+
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:8080/api/polls/" + urlId
+        );
+        if (response.data && response.data.options) {
+          extractPercentageArray(response.data.options);
+        } else {
+          console.error("Invalid response data");
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    if (urlId) {
+      setId(urlId);
+      fetchData();
+    }
+  }, []);
+  const extractPercentageArray = (options: PollOption[]) => {
+    const percentageArray: number[] = [];
+    const labelsArray: string[] = [];
+    let totalVotes = 0;
+    options.forEach((option) => {
+      totalVotes += option.votes_count ?? 0;
+    });
+    if (totalVotes === 0) {
+      console.error("Total votes are zero, cannot calculate percentages");
+      return;
+    }
+    options.forEach((option) => {
+      const percentage = (option.votes_count ?? 0) / totalVotes;
+      percentageArray.push(percentage * 100);
+      labelsArray.push(option.option_text);
+    });
+    setSeries(percentageArray);
+    setLabels(labelsArray);
+    setTotalVotes(totalVotes);
+  };
   const getChartOptions = () => {
     return {
       colors: [
@@ -42,7 +93,7 @@ function Chart({ series, labels }: ChartProps) {
                 show: true,
                 fontFamily: "Inter, sans-serif",
                 fontSize: "22px",
-                color: "#fff", // Changed from #fff to #000
+                color: "#fff",
                 offsetY: 20,
               },
               total: {
@@ -50,13 +101,9 @@ function Chart({ series, labels }: ChartProps) {
                 show: true,
                 label: "Total Votes",
                 fontFamily: "Inter, sans-serif",
-                color: "#fff", // Changed from #fff to #000
-                formatter: function (w: any) {
-                  const sum = w.globals.seriesTotals.reduce(
-                    (a: number, b: number) => a + b,
-                    0
-                  );
-                  return sum + "% votes";
+                color: "#fff",
+                formatter: function () {
+                  return totalVotes + " votes";
                 },
               },
               value: {
@@ -86,19 +133,29 @@ function Chart({ series, labels }: ChartProps) {
         horizontalAlign: "start",
         fontFamily: "Inter, sans-serif",
         labels: {
-          colors: "#fff", // Added legend label color
+          colors: "#fff",
         },
       },
     };
   };
+  if (series.length === 0 || labels.length === 0) {
+    return <div>No Votes yet</div>;
+  }
   return (
     <div>
-      <ApexCharts
-        type="donut"
-        series={series}
-        height={400}
-        options={getChartOptions()}
-      />
+      <h2>Percentage share</h2>
+      {series.length > 0 ? (
+        <div>
+          <ApexCharts
+            type="donut"
+            series={series}
+            height={400}
+            options={getChartOptions()}
+          />
+        </div>
+      ) : (
+        <div>No Votes yet</div>
+      )}
     </div>
   );
 }
