@@ -41,7 +41,7 @@ export default function RegistrationPage() {
 
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/auth/register",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
         { username },
         { withCredentials: true }
       );
@@ -104,7 +104,7 @@ export default function RegistrationPage() {
         try {
           // Send the credential to your backend to complete the registration
           await axios.post(
-            "http://localhost:8080/api/auth/register_complete",
+            `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register_complete`,
             credential,
             { withCredentials: true }
           );

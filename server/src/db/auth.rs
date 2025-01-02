@@ -1,4 +1,4 @@
-use sqlx::{types::Uuid, PgPool};
+use sqlx::{types::Uuid, PgPool, Row};
 use webauthn_rs::prelude::*;
 
 pub async fn store_passkey(
@@ -7,14 +7,14 @@ pub async fn store_passkey(
     user_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     let passkey = serde_json::to_vec(passkey).unwrap();
-    sqlx::query!(
+    sqlx::query(
         r#"
         INSERT INTO passkeys (user_id, key_data)
         VALUES ($1, $2)
         "#,
-        user_id,
-        passkey
     )
+    .bind(user_id)
+    .bind(passkey)
     .execute(pool)
     .await?;
 
@@ -41,44 +41,44 @@ pub async fn store_username(
 }
 
 pub async fn get_username(pool: &PgPool, user_id: Uuid) -> Result<String, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query(
         r#"
         SELECT username FROM users WHERE id = $1
         "#,
-        user_id
     )
+    .bind(user_id)
     .fetch_one(pool)
     .await?;
 
-    Ok(row.username)
+    Ok(row.get("username"))
 }
 
 pub async fn get_user_id(pool: &PgPool, username: &str) -> Result<Uuid, sqlx::Error> {
-    let row = sqlx::query!(
+    let row = sqlx::query(
         r#"
         SELECT id FROM users WHERE username = $1
         "#,
-        username
     )
+    .bind(username)
     .fetch_one(pool)
     .await?;
 
-    Ok(row.id)
+    Ok(row.get("id"))
 }
 
 pub async fn get_passkey(pool: &PgPool, user_id: Uuid) -> Result<Vec<Passkey>, sqlx::Error> {
-    let rows = sqlx::query!(
+    let rows = sqlx::query(
         r#"
         SELECT key_data FROM passkeys WHERE user_id = $1
         "#,
-        user_id
     )
+    .bind(user_id)
     .fetch_all(pool)
     .await?;
 
     Ok(rows
         .iter()
-        .map(|row| serde_json::from_slice::<Passkey>(&row.key_data).unwrap())
+        .map(|row| serde_json::from_slice::<Passkey>(row.get("key_data")).unwrap())
         .collect())
 }
 

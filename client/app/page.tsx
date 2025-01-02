@@ -10,10 +10,16 @@ type Poll = {
   created_at: string;
 };
 
-
 const Home = async () => {
-  const response = await axios.get("http://localhost:8080/api/polls/");
-  const polls: Poll[] = response.data;
+  let polls: Poll[] = [];
+  try {
+    const response = await axios.get(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/polls/`
+    );
+    polls = response.data;
+  } catch (error) {
+    console.error(error);
+  }
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 p-8">
       <h1 className="text-4xl font-bold mb-8 text-cyan-400 text-center">

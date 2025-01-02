@@ -57,7 +57,7 @@ function Vote({
       setLoading(true);
       try {
         const response = await axios.post(
-          `http://localhost:8080/api/polls/${pollId}/vote`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/polls/${pollId}/vote`,
           {
             option_id: voted,
           },

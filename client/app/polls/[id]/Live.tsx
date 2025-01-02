@@ -20,7 +20,7 @@ function Live({ pollId }: { pollId: string }) {
     if (!pollId) return;
 
     const eventSource = new EventSource(
-      `http://localhost:8080/api/polls/${pollId}/results`
+      `${process.env.NEXT_PUBLIC_API_URL}/api/polls/${pollId}/results`
     );
 
     const handleMessage = (event: MessageEvent) => {

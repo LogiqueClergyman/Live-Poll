@@ -30,7 +30,7 @@ const Page = ({ params }: { params: Params }) => {
     try {
       const { id } = await params;
       setId(id);
-      const { data } = await axios.get(`http://localhost:8080/api/polls/${id}`);
+      const { data } = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/polls/${id}`);
       setPollData(data);
     } catch (error) {
       console.error("Failed to fetch poll data:", error);

@@ -35,7 +35,7 @@ export default function LoginPage() {
       const response = await axios.post<{
         publicKey: PublicKeyCredentialCreationOptionsJSON;
       }>(
-        "http://localhost:8080/api/auth/login",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
         { username },
         { withCredentials: true }
       );
@@ -97,7 +97,7 @@ export default function LoginPage() {
         try {
           // Send the credential to the backend to complete the login
           const response = await axios.post(
-            "http://localhost:8080/api/auth/login_complete",
+            `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login_complete`,
             credential,
             {
               withCredentials: true,

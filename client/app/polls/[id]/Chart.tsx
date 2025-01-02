@@ -24,7 +24,7 @@ function Chart() {
     const fetchData = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8080/api/polls/" + urlId
+          `${process.env.NEXT_PUBLIC_API_URL}/api/polls/` + urlId
         );
         if (response.data && response.data.options) {
           extractPercentageArray(response.data.options);

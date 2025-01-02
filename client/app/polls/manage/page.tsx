@@ -23,7 +23,7 @@ function Page() {
     // console.log(userId);
     const fetchPolls = async () => {
       const response = await axios.get(
-        "http://localhost:8080/api/polls/?creator=" + userId,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/polls/?creator=` + userId,
         {
           withCredentials: true,
         }
@@ -79,7 +79,7 @@ const PollItem = ({ poll }: { poll: Poll }) => {
   const resetVotes = async () => {
     try {
       await axios.post(
-        `http://localhost:8080/api/polls/${poll.id}/reset`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/polls/${poll.id}/reset`,
         {},
         { withCredentials: true }
       );
@@ -95,7 +95,7 @@ const PollItem = ({ poll }: { poll: Poll }) => {
   const closePoll = async () => {
     try {
       await axios.post(
-        `http://localhost:8080/api/polls/${poll.id}/close`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/polls/${poll.id}/close`,
         {},
         { withCredentials: true }
       );

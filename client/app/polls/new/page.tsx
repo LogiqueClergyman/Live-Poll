@@ -53,7 +53,7 @@ const NewPollPage = () => {
     });
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/polls/create",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/polls/create`,
         {
           poll_name: pollName,
           poll_description: pollDescription,

@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  postgres:
+    platform: linux/amd64
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: livepool
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  client:
+    platform: linux/amd64
+    build:
+      context: ./client
+      target: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app:cached
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://server:8080
+      - NODE_ENV=development
+    depends_on:
+      server:
+        condition: service_started
+
+  server:
+    platform: linux/amd64
+    build:
+      context: ./server
+      target: development
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./server:/usr/src/app:cached
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/livepool
+      - RUST_LOG=debug
+      - HOST=0.0.0.0
+      - PORT=8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    hostname: server
+
+volumes:
+  postgres_data:
+    name: livepool-postgres-data
+
+networks:
+  default:
+    name: livepool-network
+    driver: bridge
