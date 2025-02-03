@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useAuthStore } from "../../store/auth-store";
 import Link from "next/link";
-
+import { useRouter } from "next/navigation";
 type Poll = {
   id: string;
   user_id: string;
@@ -15,12 +15,10 @@ type Poll = {
 
 function Page() {
   const [polls, setPolls] = React.useState<Poll[]>([]);
-  const ss = sessionStorage.getItem("user-info");
-
+  const { userId } = useAuthStore((state) => state);
+  const router = useRouter();
   useEffect(() => {
-    if (!ss) return;
-    const userId = JSON.parse(ss ?? "{}").state.userId;
-    // console.log(userId);
+    if (!userId) router.push("/login");
     const fetchPolls = async () => {
       const response = await axios.get(
         `${process.env.NEXT_PUBLIC_API_URL}/api/polls/?creator=` + userId,
@@ -31,9 +29,9 @@ function Page() {
       setPolls(response.data);
     };
     fetchPolls();
-  }, [ss]);
+  }, [userId]);
 
-  if (!ss) {
+  if (!userId) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-800 to-black flex items-center justify-center">
         <div className="text-center space-y-8 p-10 bg-gradient-to-r from-gray-900/50 to-gray-800/50 backdrop-blur-lg rounded-2xl border border-gray-700/30 shadow-2xl">
@@ -83,13 +81,12 @@ const PollItem = ({ poll }: { poll: Poll }) => {
         {},
         { withCredentials: true }
       );
-      alert("Poll closed successfully");
+      alert("Votes reset successfully");
     } catch (err) {
       console.error(err);
-      alert("Failed to close poll");
+      alert("Failed to reset votes");
     }
-    setShowCloseConfirm(false);
-    setIsActive(false);
+    setShowResetConfirm(false);
   };
 
   const closePoll = async () => {
@@ -99,12 +96,13 @@ const PollItem = ({ poll }: { poll: Poll }) => {
         {},
         { withCredentials: true }
       );
-      setShowResetConfirm(false);
-      alert("Votes reset successfully");
+      alert("Poll closed successfully");
     } catch (err) {
       console.error(err);
-      alert("Failed to reset votes");
+      alert("Failed to close poll");
+      setIsActive(false);
     }
+    setShowCloseConfirm(false);
   };
   return (
     <li className="bg-gradient-to-tr from-black via-blue-900 to-black hover:via-purple-900 shadow-md rounded-lg p-4 cursor-pointer min-h-52">

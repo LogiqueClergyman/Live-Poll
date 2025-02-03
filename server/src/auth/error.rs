@@ -45,14 +45,18 @@ pub enum Error {
     #[error("User already voted")]
     AlreadyVoted,
     #[error("User did not vote")]
-    VoteNotFound
+    VoteNotFound,
+    #[error("User already exists")]
+    UserExists,
 }
 
 impl actix_web::ResponseError for Error {
     fn status_code(&self) -> StatusCode {
         match *self {
             Error::Unknown(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Error::SessionGet(_) | Error::SessionInsert(_) | Error::CorruptSession => StatusCode::BAD_REQUEST,
+            Error::SessionGet(_) | Error::SessionInsert(_) | Error::CorruptSession => {
+                StatusCode::BAD_REQUEST
+            }
             Error::BadRequest(_) => StatusCode::BAD_REQUEST,
             Error::UserNotFound => StatusCode::NOT_FOUND,
             Error::UserHasNoCredentials => StatusCode::BAD_REQUEST,
@@ -62,7 +66,8 @@ impl actix_web::ResponseError for Error {
             Error::PollNotFound => StatusCode::NOT_FOUND,
             Error::Unauthorized => StatusCode::UNAUTHORIZED,
             Error::AlreadyVoted => StatusCode::BAD_REQUEST,
-            Error::VoteNotFound => StatusCode::NOT_FOUND
+            Error::VoteNotFound => StatusCode::NOT_FOUND,
+            Error::UserExists => StatusCode::BAD_REQUEST,
         }
     }
 }

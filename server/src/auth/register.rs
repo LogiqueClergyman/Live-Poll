@@ -1,12 +1,12 @@
-use crate::db::auth::{store_passkey, store_username};
 use super::error::{Error, WebResult};
 use super::startup::UserData;
+use crate::db::auth::{get_user_id, store_passkey, store_username};
 use actix_session::Session;
-use actix_web::web::{Data, Json, Path};
+use actix_web::web::{self, Data, Json, Path};
 use actix_web::HttpResponse;
 use log::{error, info};
 use serde::Deserialize;
-use sqlx::PgPool;
+use sqlx::{types::Uuid, PgPool};
 use tokio::sync::Mutex;
 use webauthn_rs::prelude::*;
 
@@ -20,9 +20,19 @@ pub async fn start_register(
     session: Session,
     webauthn_users: Data<Mutex<UserData>>,
     webauthn: Data<Webauthn>,
+    pool: Data<PgPool>,
 ) -> WebResult<Json<CreationChallengeResponse>> {
     info!("Start register");
     let username = req.username.clone();
+    match get_user_id(&pool, &username).await {
+        Ok(_) => return Err(Error::UserExists),
+        Err(e) if matches!(e, sqlx::Error::RowNotFound) => false,
+        Err(e) => return Err(Error::DatabaseError(e)),
+    };
+    match webauthn_users.lock().await.name_to_id.get(&username) {
+        Some(_) => return Err(Error::UserExists),
+        None => false,
+    };
     // We get the username from the URL, but you could get this via form submission or
     // some other process. In some parts of Webauthn, you could also use this as a "display name"
     // instead of a username. Generally you should consider that the user *can* and *will* change
@@ -33,7 +43,6 @@ pub async fn start_register(
     // username does exist and is found, we can match back to our unique id. This is
     // important in authentication, where presented credentials may *only* provide
     // the unique id, and not the username!
-
     let user_unique_id = {
         let users_guard = webauthn_users.lock().await;
         users_guard
@@ -58,10 +67,7 @@ pub async fn start_register(
 
     let (ccr, reg_state) = webauthn
         .start_passkey_registration(user_unique_id, &username, &username, exclude_credentials)
-        .map_err(|e| {
-            info!("challenge_register -> {:?}", e);
-            Error::Unknown(e)
-        })?;
+        .map_err(Error::Unknown)?;
 
     // Note that due to the session store in use being a server side memory store, this is
     // safe to store the reg_state into the session since it is not client controlled and
@@ -70,9 +76,6 @@ pub async fn start_register(
         error!("Failed to save reg_state to session storage!");
         return Err(Error::SessionInsert(err));
     };
-    println!("HAJA {:?}", session.entries());
-    // println!("{:?}", session.entries());
-    info!("Registration Initiated!");
     Ok(Json(ccr))
 }
 
@@ -93,16 +96,11 @@ pub async fn finish_register(
             None => return Err(Error::CorruptSession),
         };
     session.remove("reg_state");
-    info!("Finishing registration for user: {}", username);
     let sk = webauthn
         .finish_passkey_registration(&req, &reg_state)
-        .map_err(|e| {
-            info!("challenge_register -> {:?}", e);
-            Error::BadRequest(e)
-        })?;
+        .map_err(Error::BadRequest)?;
 
     let mut users_guard = webauthn_users.lock().await;
-    // println!("{:?}", sk);
 
     users_guard
         .keys
@@ -114,25 +112,13 @@ pub async fn finish_register(
         .name_to_id
         .insert(username.clone(), user_unique_id);
 
-    match store_username(&pool, &username, user_unique_id).await {
-        Err(e) => {
-            error!("Failed to store username: {:?}", e);
-            return Err(Error::DatabaseError(e));
-        }
-        Ok(_) => {
-            info!("Storing username");
-        }
-    };
+    store_username(&pool, &username, user_unique_id)
+        .await
+        .map_err(Error::DatabaseError)?;
 
-    match store_passkey(&pool, &sk, user_unique_id).await {
-        Err(e) => {
-            error!("Failed to store passkey: {:?}", e);
-            return Err(Error::DatabaseError(e));
-        }
-        Ok(_) => {
-            info!("Storing passkey");
-        }
-    };
+    store_passkey(&pool, &sk, user_unique_id)
+        .await
+        .map_err(Error::DatabaseError)?;
 
     Ok(HttpResponse::Ok().finish())
 }

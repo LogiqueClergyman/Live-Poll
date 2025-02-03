@@ -1,34 +1,34 @@
 "use client";
 import axios from "axios";
-import { log } from "console";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-
+import { useAuthStore } from "./store/auth-store";
+import { useRouter } from "next/navigation";
 function NavBall() {
   const [clicked, setClicked] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const ss = sessionStorage.getItem("user-info");
+  const { userId, resetUserSession } = useAuthStore((state) => state);
+  const router = useRouter();
   useEffect(() => {
-    if (ss) {
-      setIsLoggedIn(true);
-    } else {
+    if (!userId) {
       setIsLoggedIn(false);
+    } else {
+      setIsLoggedIn(true);
     }
-  }, [ss]);
+  }, [userId]);
   const logout = async () => {
     try {
-      const response = await axios.post(
+      await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`,
         {},
         {
           withCredentials: true,
         }
       );
-      sessionStorage.removeItem("user-info");
+      resetUserSession();
       setIsLoggedIn(false);
-      window.location.href = "/";
+      router.push("/");
       alert("Logged out successfully");
-      // console.log(response);
     } catch (err) {
       console.error(err);
     }
@@ -73,12 +73,14 @@ function NavBall() {
                   </li>
                 </Link>
               ) : (
-                <li
-                  onClick={logout}
-                  className="px-4 py-2 text-white text-sm font-medium hover:bg-white/20 rounded-lg transition-colors duration-300"
-                >
-                  Logout
-                </li>
+                <Link href={"/"}>
+                  <li
+                    onClick={logout}
+                    className="px-4 py-2 text-white text-sm font-medium hover:bg-white/20 rounded-lg transition-colors duration-300"
+                  >
+                    Logout
+                  </li>
+                </Link>
               )}
             </ul>
           )}

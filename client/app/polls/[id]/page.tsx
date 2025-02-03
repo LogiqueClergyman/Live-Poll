@@ -26,19 +26,21 @@ interface PollOption {
 const Page = ({ params }: { params: Params }) => {
   const [pollData, setPollData] = useState<PollData | null>(null);
   const [id, setId] = useState<string | null>(null);
-  const fetchPollData = async () => {
-    try {
-      const { id } = await params;
-      setId(id);
-      const { data } = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/polls/${id}`);
-      setPollData(data);
-    } catch (error) {
-      console.error("Failed to fetch poll data:", error);
-    }
-  };
   useEffect(() => {
+    const fetchPollData = async () => {
+      try {
+        const { id } = await params;
+        setId(id);
+        const { data } = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/polls/${id}`
+        );
+        setPollData(data);
+      } catch (error) {
+        console.error("Failed to fetch poll data:", error);
+      }
+    };
     fetchPollData();
-  }, []);
+  }, [params]);
   return (
     <div className="p-8 mx-auto min-h-screen bg-gray-900 text-gray-100">
       <div className="max-w-6xl mx-auto">

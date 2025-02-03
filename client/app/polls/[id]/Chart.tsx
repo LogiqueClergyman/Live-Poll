@@ -16,7 +16,6 @@ function Chart() {
   const [series, setSeries] = React.useState<number[]>([]);
   const [labels, setLabels] = React.useState<string[]>([]);
   const [totalVotes, setTotalVotes] = React.useState<number>(0);
-  const [id, setId] = React.useState<string | null>(null);
   useEffect(() => {
     const pathSegments = window.location.pathname.split("/");
     const urlId = pathSegments[pathSegments.length - 1];
@@ -37,7 +36,6 @@ function Chart() {
     };
 
     if (urlId) {
-      setId(urlId);
       fetchData();
     }
   }, []);
@@ -146,12 +144,9 @@ function Chart() {
       <h2>Percentage share</h2>
       {series.length > 0 ? (
         <div>
-          <ApexCharts
-            type="donut"
-            series={series}
-            height={400}
-            options={getChartOptions()}
-          />
+          {/* @ts-expect-error - ApexCharts component has incomplete TypeScript definitions */}
+          <ApexCharts type="donut" series={series} height={400} options={getChartOptions()}
+            />
         </div>
       ) : (
         <div>No Votes yet</div>

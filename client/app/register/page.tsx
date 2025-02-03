@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import axios from "axios";
-
+import { useRouter } from "next/navigation";
 export default function RegistrationPage() {
   const [challengeData, setChallengeData] =
     useState<PublicKeyCredentialCreationOptionsJSON | null>(null);
@@ -11,7 +11,7 @@ export default function RegistrationPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [username, setUsername] = useState("");
-
+  const router = useRouter();
   // Base64 to ArrayBuffer conversion utility
   const base64ToArrayBuffer = (base64: string): ArrayBuffer => {
     base64 = base64.replace(/-/g, "+").replace(/_/g, "/");
@@ -109,7 +109,7 @@ export default function RegistrationPage() {
             { withCredentials: true }
           );
           alert("Registration successful!");
-          window.location.href = "/login";
+          router.push("/login");
         } catch (err) {
           console.error("Error finishing registration:", err);
           setError("Failed to finish registration");

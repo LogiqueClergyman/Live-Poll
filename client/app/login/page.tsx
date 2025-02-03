@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuthStore } from "../store/auth-store";
-
+import { useRouter } from "next/navigation";
 export default function LoginPage() {
   const [authData, setAuthData] =
     useState<PublicKeyCredentialRequestOptionsJSON | null>(null);
@@ -14,7 +14,7 @@ export default function LoginPage() {
     null
   );
   const { createSession } = useAuthStore();
-
+  const router = useRouter();
   const handleStartLogin = async (
     data: PublicKeyCredentialRequestOptionsJSON
   ) => {
@@ -105,7 +105,7 @@ export default function LoginPage() {
           );
           createSession(response.data.userId, response.data.username);
           alert("Login successful!");
-          window.location.href = "/";
+          router.push("/");
         } catch (err) {
           console.error("Error completing login:", err);
           setError("Failed to complete login");

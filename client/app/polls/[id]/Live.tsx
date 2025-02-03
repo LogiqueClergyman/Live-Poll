@@ -55,23 +55,28 @@ function Live({ pollId }: { pollId: string }) {
                   : 0;
               console.log(votePercentage);
               return (
-                <div key={option.id} className="mb-6 group hover:transform hover:scale-[1.01] transition-all duration-300">
-                    <div className="flex justify-between items-center text-gray-300 mb-2">
-                        <span className="text-base font-medium tracking-wide">{option.option_text}</span>
-                        <div className="flex items-center space-x-2">
-                            <span className="text-sm font-semibold bg-gray-800 px-3 py-1 rounded-full">
-                                {option.votes_count ?? 0} votes
-                            </span>
-                        </div>
+                <div
+                  key={option.id}
+                  className="mb-6 group hover:transform hover:scale-[1.01] transition-all duration-300"
+                >
+                  <div className="flex justify-between items-center text-gray-300 mb-2">
+                    <span className="text-base font-medium tracking-wide">
+                      {option.option_text}
+                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-semibold bg-gray-800 px-3 py-1 rounded-full">
+                        {option.votes_count ?? 0} votes
+                      </span>
                     </div>
-                    <div className="h-3 bg-gray-800/50 border rounded-full overflow-hidden backdrop-blur-sm">
-                        <div
-                            className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500 ease-out shadow-lg shadow-blue-500/20"
-                            style={{
-                                width: `${votePercentage}%`,
-                            }}
-                        />
-                    </div>
+                  </div>
+                  <div className="h-3 bg-gray-800/50 border rounded-full overflow-hidden backdrop-blur-sm">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500 ease-out shadow-lg shadow-blue-500/20"
+                      style={{
+                        width: `${votePercentage}%`,
+                      }}
+                    />
+                  </div>
                 </div>
               );
             })}

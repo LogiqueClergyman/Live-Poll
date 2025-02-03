@@ -2,20 +2,24 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "../../store/auth-store";
 const NewPollPage = () => {
   const [pollName, setPollName] = useState("");
   const [pollDescription, setPollDescription] = useState("");
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
   const [error, setError] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const ss = sessionStorage.getItem("user-info");
+  const { username } = useAuthStore((state) => state);
+  const router = useRouter();
   useEffect(() => {
-    if (ss) {
-      setIsLoggedIn(true);
-    } else {
+    if (!username) {
+      router.push("/login");
       setIsLoggedIn(false);
+    } else {
+      setIsLoggedIn(true);
     }
-  }, [ss]);
+  }, [username]);
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...pollOptions];
     newOptions[index] = value;
@@ -63,6 +67,9 @@ const NewPollPage = () => {
           withCredentials: true,
         }
       );
+      if (response.status !== 201) {
+        throw new Error("Failed to create poll.");
+      }
       alert("Poll created successfully.");
       setPollName("");
       setPollDescription("");

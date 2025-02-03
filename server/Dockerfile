@@ -17,6 +17,6 @@ RUN cargo build --release
 # Production stage
 FROM debian:bullseye-slim AS production
 WORKDIR /usr/src/app
-COPY --from=builder /usr/src/app/target/release/live-pool .
+COPY --from=builder /usr/src/app/target/release/livepool-server .
 EXPOSE 8080
-CMD ["./live-pool"]
+CMD ["./livepool-server"]
