@@ -1,5 +1,3 @@
-use std::path;
-
 use actix_cors::Cors;
 use actix_session::SessionMiddleware;
 use actix_web::{
@@ -8,7 +6,9 @@ use actix_web::{
     web::{self, get, post, route, Data, JsonConfig},
     App, HttpResponse, HttpServer, Responder,
 };
+use dotenvy;
 use log::info;
+use std::env;
 mod auth;
 pub use auth::{
     login::{finish_authentication, start_authentication},
@@ -51,9 +51,12 @@ async fn main() -> std::io::Result<()> {
     }
     let key = Key::from(format!("{:0<100}", "qwerty").as_bytes());
     let (webauthn, webauthn_users) = startup();
+    let origin = env::var("SERVER_ORIGIN").expect("SERVER_ORIGIN should be specified in the env");
+    let port: u16 = env::var("SERVER_PORT").expect("SERVER_PORT should be specified in the env").parse().expect("PORT must be a number");
+    let rp_origin = env::var("RP_ORIGIN").expect("RP_ORIGIN should be specified in the env");
     HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin("http://localhost:3000") // Allow requests from your frontend
+            .allowed_origin(&rp_origin) // Allow requests from your frontend
             .allowed_methods(vec!["GET", "POST", "OPTIONS"]) // Allow necessary HTTP methods
             .allowed_headers(vec!["Content-Type", "Authorization", "X-Requested-With"]) // Allow necessary headers
             .allow_any_header() // Allow cookies to be sent with requests
@@ -106,7 +109,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/", web::get().to(polls::manage_polls::get_polls_brief)),
             )
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind((origin.as_str(), port))?
     .run()
     .await
 }

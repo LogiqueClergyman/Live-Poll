@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-
+use dotenvy;
 use actix_web::web::Data;
 use tokio::sync::Mutex;
-
+use std::env;
 /*
  * Webauthn RS server side app state and setup code.
  */
@@ -21,10 +21,13 @@ pub struct UserData {
 }
 
 pub fn startup() -> (Data<Webauthn>, Data<Mutex<UserData>>) {
+    let _ = dotenvy::from_filename(".env").ok();
     // Effective domain name.
     let rp_id = "localhost";
+    let rp_id = env::var("RP_ID").expect("RP_ID should be specified in the env");
     // Url containing the effective domain name
     // MUST include the port number!
+    let rp_origin = env::var("RP_ORIGIN").expect("RP_ORIGIN should be specified in the env");
     let rp_origin = Url::parse("http://localhost:3000").expect("Invalid URL");
     let builder = WebauthnBuilder::new(&rp_id, &rp_origin).expect("Invalid configuration");
 
