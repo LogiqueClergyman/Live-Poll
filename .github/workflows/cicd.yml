@@ -80,5 +80,5 @@ jobs:
             docker pull $ECR_REPO_URI/adi_voting_server:latest
 
             # Restart services
-            docker compose down
-            docker compose up -d --remove-orphans
+            docker-compose down
+            docker-compose up -d --remove-orphans
