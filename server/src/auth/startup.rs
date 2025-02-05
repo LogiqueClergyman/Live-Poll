@@ -23,12 +23,12 @@ pub struct UserData {
 pub fn startup() -> (Data<Webauthn>, Data<Mutex<UserData>>) {
     let _ = dotenvy::from_filename(".env").ok();
     // Effective domain name.
-    let rp_id = "localhost";
+    // let rp_id = "localhost:3000/";
     let rp_id = env::var("RP_ID").expect("RP_ID should be specified in the env");
     // Url containing the effective domain name
     // MUST include the port number!
-    let rp_origin = env::var("RP_ORIGIN").expect("RP_ORIGIN should be specified in the env");
-    let rp_origin = Url::parse("http://localhost:3000").expect("Invalid URL");
+    let rp_origin = Url::parse(env::var("RP_ORIGIN").expect("RP_ORIGIN should be specified in the env").as_str()).unwrap();
+    // let rp_origin = Url::parse("http://localhost:3000/").expect("Invalid URL");
     let builder = WebauthnBuilder::new(&rp_id, &rp_origin).expect("Invalid configuration");
 
     // Now, with the builder you can define other options.

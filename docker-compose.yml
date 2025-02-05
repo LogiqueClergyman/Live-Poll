@@ -1,38 +1,36 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  postgres:
-    platform: linux/amd64
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: livepool
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: pg_isready -U postgres
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+  # postgres:
+  #   platform: linux/amd64
+  #   image: postgres:15-alpine
+  #   environment:
+  #     POSTGRES_USER: ${DB_USER}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
+  #     POSTGRES_DB: ${DB_NAME}
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   command: ["postgres", "-c", "log_statement=all"]
 
   client:
     platform: linux/amd64
     build:
       context: ./client
-      target: development
+      target: production
     ports:
       - "3000:3000"
-    volumes:
-      - ./client:/app:cached
-      - /app/node_modules
-      - /app/.next
     environment:
-      - NEXT_PUBLIC_API_URL=http://server:8080
-      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NODE_ENV=production
+    restart: unless-stopped
     depends_on:
       server:
         condition: service_started
@@ -41,26 +39,37 @@ services:
     platform: linux/amd64
     build:
       context: ./server
-      target: development
+      target: production
     ports:
       - "8080:8080"
-    volumes:
-      - ./server:/usr/src/app:cached
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/livepool
+      - DATABASE_URL=${DATABASE_URL}
       - RUST_LOG=debug
       - HOST=0.0.0.0
-      - PORT=8080
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - RP_ORIGIN=${RP_ORIGIN}
+      - RP_ID=${RP_ID}
+      - PORT=${PORT}
+    restart: unless-stopped
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
     hostname: server
 
-volumes:
-  postgres_data:
-    name: livepool-postgres-data
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - client
+      - server
+
+# volumes:
+#   postgres_data:
+#     name: livepool-postgres-data-prod
 
 networks:
   default:
-    name: livepool-network
+    name: livepool-network-prod
     driver: bridge

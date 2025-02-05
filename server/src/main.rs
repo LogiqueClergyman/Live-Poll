@@ -51,12 +51,15 @@ async fn main() -> std::io::Result<()> {
     }
     let key = Key::from(format!("{:0<100}", "qwerty").as_bytes());
     let (webauthn, webauthn_users) = startup();
-    let origin = env::var("SERVER_ORIGIN").expect("SERVER_ORIGIN should be specified in the env");
-    let port: u16 = env::var("SERVER_PORT").expect("SERVER_PORT should be specified in the env").parse().expect("PORT must be a number");
+    let host = env::var("HOST").expect("HOST should be specified in the env");
+    let port: u16 = env::var("PORT")
+        .expect("PORT should be specified in the env")
+        .parse()
+        .expect("PORT must be a number");
     let rp_origin = env::var("RP_ORIGIN").expect("RP_ORIGIN should be specified in the env");
     HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin(&rp_origin) // Allow requests from your frontend
+            .allow_any_origin() // Allow requests from any origin
             .allowed_methods(vec!["GET", "POST", "OPTIONS"]) // Allow necessary HTTP methods
             .allowed_headers(vec!["Content-Type", "Authorization", "X-Requested-With"]) // Allow necessary headers
             .allow_any_header() // Allow cookies to be sent with requests
@@ -109,7 +112,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/", web::get().to(polls::manage_polls::get_polls_brief)),
             )
     })
-    .bind((origin.as_str(), port))?
+    .bind((host.as_str(), port))?
     .run()
     .await
 }
