@@ -60,15 +60,15 @@ jobs:
             cd /home/ubuntu/livepool
 
             # Inject environment variables dynamically
-            export ECR_REPO_URL=${{ secrets.ECR_REPO_URI }}
+            export ECR_REPO_URI=${{ secrets.ECR_REPO_URI }}
             export DATABASE_URL=${{ secrets.DATABASE_URL }}
 
             # Log in to ECR
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REPO_URI
 
             # Pull latest images
-            docker pull $ECR_REPO_URL/live-pool-client:latest
-            docker pull $ECR_REPO_URL/live-pool-server:latest
+            docker pull $ECR_REPO_URI/adi_voting_client:latest
+            docker pull $ECR_REPO_URI/adi_voting_server:latest
 
             # Restart services
             docker compose down
