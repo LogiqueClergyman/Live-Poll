@@ -1,0 +1,75 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and push Docker images
+        env:
+          ECR_URI: ${{ secrets.ECR_REPO_URI }}
+        run: |
+          docker build -t $ECR_URI/adi_voting_client:latest -f client/Dockerfile ./client
+          docker build -t $ECR_URI/adi_voting_server:latest -f server/Dockerfile ./server
+          docker push $ECR_URI/adi_voting_client:latest
+          docker push $ECR_URI/adi_voting_server:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy files to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml,nginx.conf"
+          target: "/home/ubuntu/livepool"
+
+      - name: SSH into EC2 and deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/livepool
+
+            # Inject environment variables dynamically
+            export ECR_REPO_URL=${{ secrets.ECR_REPO_URI }}
+            export DATABASE_URL=${{ secrets.DATABASE_URL }}
+
+            # Log in to ECR
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REPO_URI
+
+            # Pull latest images
+            docker pull $ECR_REPO_URL/live-pool-client:latest
+            docker pull $ECR_REPO_URL/live-pool-server:latest
+
+            # Restart services
+            docker compose down
+            docker compose up -d --remove-orphans
