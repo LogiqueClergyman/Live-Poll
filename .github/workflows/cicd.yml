@@ -28,10 +28,10 @@ jobs:
         env:
           ECR_URI: ${{ secrets.ECR_REPO_URI }}
         run: |
-          docker build -t $ECR_URI/adi_voting_client:latest -f client/Dockerfile ./client
-          docker build -t $ECR_URI/adi_voting_server:latest -f server/Dockerfile ./server
-          docker push $ECR_URI/adi_voting_client:latest
-          docker push $ECR_URI/adi_voting_server:latest
+          # docker build -t $ECR_URI/adi_voting_client:latest -f client/Dockerfile ./client
+          # docker build -t $ECR_URI/adi_voting_server:latest -f server/Dockerfile ./server
+          # docker push $ECR_URI/adi_voting_client:latest
+          # docker push $ECR_URI/adi_voting_server:latest
 
   deploy:
     needs: build-and-push
@@ -68,6 +68,9 @@ jobs:
             # Inject environment variables dynamically
             export ECR_REPO_URI=${{ secrets.ECR_REPO_URI }}
             export DATABASE_URL=${{ secrets.DATABASE_URL }}
+
+            echo "ECR_REPO_URI=${ECR_REPO_URI}"
+            echo "AWS_REGION=${{ secrets.AWS_REGION }}"
 
             # Log in to ECR
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REPO_URI
