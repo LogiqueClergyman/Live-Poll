@@ -28,7 +28,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_API_URL=http://localhost/api
       - NODE_ENV=production
     restart: unless-stopped
     depends_on:
@@ -46,9 +46,9 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - RUST_LOG=debug
       - HOST=0.0.0.0
-      - RP_ORIGIN=${RP_ORIGIN}
-      - RP_ID=${RP_ID}
-      - PORT=${PORT}
+      - RP_ORIGIN=http://localhost
+      - RP_ID=localhost
+      - PORT=8080
     restart: unless-stopped
     # depends_on:
     #   postgres:
