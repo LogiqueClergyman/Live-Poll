@@ -28,9 +28,9 @@ jobs:
         env:
           ECR_URI: ${{ secrets.ECR_REPO_URI }}
         run: |
-          # docker build -t $ECR_URI/adi_voting_client:latest -f client/Dockerfile ./client
+          docker build -t $ECR_URI/adi_voting_client:latest -f client/Dockerfile ./client
           # docker build -t $ECR_URI/adi_voting_server:latest -f server/Dockerfile ./server
-          # docker push $ECR_URI/adi_voting_client:latest
+          docker push $ECR_URI/adi_voting_client:latest
           # docker push $ECR_URI/adi_voting_server:latest
 
   deploy:
