@@ -29,7 +29,9 @@ jobs:
           ECR_URI: ${{ secrets.ECR_REPO_URI }}
         run: |
           docker builder prune --all
-          docker build -t $ECR_URI/adi_voting_client:latest -f client/Dockerfile ./client
+          docker build -t $ECR_URI/adi_voting_client:latest \
+            --build-arg NEXT_PUBLIC_API_URL=http://localhost/api \
+            -f client/Dockerfile ./client
           # docker build -t $ECR_URI/adi_voting_server:latest -f server/Dockerfile ./server
           docker push $ECR_URI/adi_voting_client:latest
           # docker push $ECR_URI/adi_voting_server:latest
