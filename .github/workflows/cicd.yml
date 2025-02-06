@@ -30,7 +30,7 @@ jobs:
         run: |
           docker builder prune --all
           docker build -t $ECR_URI/adi_voting_client:latest \
-            --build-arg NEXT_PUBLIC_API_URL=http://localhost \
+            --build-arg NEXT_PUBLIC_API_URL=http://localhost/api \
             -f client/Dockerfile ./client
           # docker build -t $ECR_URI/adi_voting_server:latest -f server/Dockerfile ./server
           docker push $ECR_URI/adi_voting_client:latest
@@ -85,14 +85,3 @@ jobs:
             # Restart services
             docker-compose down
             docker-compose up -d --remove-orphans
-
-              docker-compose up -d --remove-orphans
-  
-            # Add logging
-            echo "Checking container logs..."
-            docker-compose logs nginx
-            docker-compose logs client
-            docker-compose logs server
-            
-            # Check container status
-            docker-compose ps
