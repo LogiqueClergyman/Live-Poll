@@ -29,7 +29,7 @@ services:
     # ports:
     #   - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=/
+      - NEXT_PUBLIC_API_URL=http://13.201.129.4/api/
       - NODE_ENV=production
     restart: unless-stopped
     depends_on:

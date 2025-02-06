@@ -5,7 +5,7 @@ COPY package*.json ./
 RUN npm install
 
 # Set default value for NEXT_PUBLIC_API_URL during build
-ARG NEXT_PUBLIC_API_URL=/
+ARG NEXT_PUBLIC_API_URL=http://13.201.129.4/api/
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 COPY . .
