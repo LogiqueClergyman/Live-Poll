@@ -85,3 +85,14 @@ jobs:
             # Restart services
             docker-compose down
             docker-compose up -d --remove-orphans
+
+              docker-compose up -d --remove-orphans
+  
+            # Add logging
+            echo "Checking container logs..."
+            docker-compose logs nginx
+            docker-compose logs client
+            docker-compose logs server
+            
+            # Check container status
+            docker-compose ps
