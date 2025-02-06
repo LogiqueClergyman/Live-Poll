@@ -21,7 +21,12 @@ RUN rm -rf /var/cache/apk/* && \
     rm -rf /tmp/*
 
 ENV NODE_ENV production
-ENV NEXT_PUBLIC_API_URL http://localhost/api    
+
+# Accept the build argument for NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_API_URL
+
+# Set the environment variable from the build argument
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL 
 
 EXPOSE 3000
 CMD ["node", "server.js"]
