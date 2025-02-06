@@ -21,6 +21,7 @@ RUN rm -rf /var/cache/apk/* && \
     rm -rf /tmp/*
 
 ENV NODE_ENV production
+ENV NEXT_PUBLIC_API_URL http://localhost/api    
 
 EXPOSE 3000
 CMD ["node", "server.js"]
